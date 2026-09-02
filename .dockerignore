@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.git/
+.github/
+.env
+*.egg-info/
+dist/
+build/
+# The host uv.toml forces the OS certificate store, a workaround for TLS
+# interception on the developer machine. Inside the image it is unnecessary
+# and would point uv at a store the container does not have.
+uv.toml

@@ -1,9 +1,16 @@
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    # Kept on the same major as the pinned Python client
+    # (elasticsearch>=8.15.0,<9.0.0). Changing either side without the other
+    # breaks at the transport layer, which the mocked tests cannot detect —
+    # tests/integration/test_elasticsearch.py asserts the two majors match.
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
     container_name: elasticsearch_rag
     environment:
       - discovery.type=single-node
+      # Development only: disables authentication and TLS so the PoC can talk
+      # to the cluster over plain HTTP on localhost. Never use this in a
+      # deployed environment.
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
@@ -15,6 +22,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  app:
+    build: .
+    container_name: rag_app
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_INDEX=rag_docs
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
 
 volumes:
   es_data:
