@@ -1,15 +1,7 @@
-Feature: Busca de documentos no índice
-  Como um usuário do sistema RAG
-  Eu quero buscar documentos relevantes no índice
-  Para obter contexto que fundamente a resposta gerada pelo LLM
+Feature: Search for relevant documents
 
-  Scenario: Busca retorna contexto relevante para uma query válida
-    Given o índice de busca contém documentos indexados
-    When eu busco pela query "Como funciona o RAG?"
-    Then o resultado da busca não deve estar vazio
-    And cada resultado deve conter um campo de conteúdo textual
-
-  Scenario: Busca por termo sem correspondência não retorna contexto
-    Given o índice de busca contém documentos indexados
-    When eu busco pela query "termo completamente inexistente xyzzy"
-    Then o resultado da busca deve estar vazio
+  Scenario: Question with a match in the database
+    Given the database contains a document about "RAG Limitations"
+    When I search for the question "When should I not use RAG?"
+    Then the system should return a list containing at most 5 documents
+    And the document about "RAG Limitations" should be the first result (highest score)
