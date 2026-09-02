@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+  # Runs for pull requests into any branch, not just main, so that stacked
+  # pull requests are verified too. `reopened` covers a stale PR being picked
+  # back up; `edited` covers a stacked PR being retargeted when its base
+  # merges, which would otherwise leave it with no status check at all.
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   test:
