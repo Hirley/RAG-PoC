@@ -2,13 +2,21 @@
 name = "rag"
 version = "0.1.0"
 description = "Sistema RAG (Retrieval-Augmented Generation) em Python puro"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Hirley Esmeraldo Ribeiro", email = "hirley@gmail.com" },
+]
 requires-python = ">=3.12"
 dependencies = [
     "python-dotenv>=1.0.0",
     "minsearch>=0.0.2",
-    "elasticsearch>=8.15.0",
+    "elasticsearch>=8.15.0,<9.0.0",
     "anthropic>=0.34.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/Hirley/RAG-PoC"
 
 [dependency-groups]
 dev = [
