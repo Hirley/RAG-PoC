@@ -66,6 +66,39 @@ uv run pytest
 uv run pytest -v
 ```
 
+### Integration tests
+
+Everything under `tests/step_defs/` and `tests/unit/` mocks the ElasticSearch
+client, so none of it would catch a client/server incompatibility.
+`tests/integration/` talks to a real server and is the only place where the
+pinned client is actually verified against the running cluster.
+
+These tests **skip automatically** when no server is reachable, so the plain
+`uv run pytest` above works without Docker. To run them for real:
+
+```bash
+docker-compose up -d elasticsearch
+uv run pytest -m integration -v
+```
+
+Client and server must stay on the same major version — the pin in
+`pyproject.toml` (`elasticsearch>=8.15.0,<9.0.0`) and the image tag in
+`docker-compose.yml` are two halves of one decision, and
+`test_client_and_server_majors_are_compatible` fails loudly if they drift.
+
+## Running in Docker
+
+```bash
+# Build the app image and run the full suite against a live ElasticSearch
+docker-compose up --build
+
+# Just the database, for local development
+docker-compose up -d elasticsearch
+```
+
+The `app` service waits for the `elasticsearch` healthcheck before starting,
+and its default command runs the test suite.
+
 ## Project structure
 
 ```
@@ -73,12 +106,15 @@ uv run pytest -v
 ├── tests/
 │   ├── features/          # Gherkin (.feature) specs
 │   ├── step_defs/         # pytest-bdd step definitions
-│   └── unit/              # Unit tests
+│   ├── unit/              # Unit tests
+│   └── integration/       # Tests against a real ElasticSearch
 ├── src/
 │   ├── search.py          # ElasticSearch integration (future: PostgreSQL)
 │   ├── prompt.py          # Context/question prompt formatting
-│   └── llm.py             # LLM API calls (Claude/OpenAI/Groq)
-├── docker-compose.yml      # Local ElasticSearch
+│   ├── llm.py             # LLM API calls (Claude)
+│   └── rag.py             # Orchestrates search -> prompt -> llm
+├── Dockerfile              # Application image
+├── docker-compose.yml      # ElasticSearch + app
 ├── .env.example            # Environment variable template
 └── pyproject.toml          # uv/pytest configuration
 ```

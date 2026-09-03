@@ -27,6 +27,9 @@ dev = [
 [tool.pytest.ini_options]
 bdd_features_base_dir = "tests/features/"
 testpaths = ["tests"]
+markers = [
+    "integration: talks to a real ElasticSearch; skipped when none is reachable",
+]
 
 [build-system]
 requires = ["hatchling"]
