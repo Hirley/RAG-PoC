@@ -21,4 +21,8 @@ COPY tests/ ./tests/
 
 RUN uv sync --locked
 
-CMD ["uv", "run", "pytest", "-v"]
+# pytest is invoked directly rather than through `uv run`: uv revalidates the
+# environment against the index on every run, which hangs when the network
+# intercepts TLS. The dependencies are already installed and /app/.venv/bin is
+# on PATH, so the sync would buy nothing anyway.
+CMD ["pytest", "-v"]

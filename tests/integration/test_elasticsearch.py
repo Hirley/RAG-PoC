@@ -22,6 +22,12 @@ pytestmark = pytest.mark.integration
 
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
+# Skipping when no server is reachable keeps `uv run pytest` usable without
+# Docker, but it also means a genuinely broken environment reports success.
+# Where the server is guaranteed — docker-compose, CI — set this to 1 so an
+# unreachable server fails the run instead of quietly skipping it.
+REQUIRE_ELASTICSEARCH = os.environ.get("RAG_REQUIRE_ELASTICSEARCH") == "1"
+
 DOCUMENTS = [
     {
         "title": "RAG Limitations",
@@ -50,7 +56,10 @@ def client() -> Iterator[Elasticsearch]:
         reachable = False
 
     if not reachable:
-        pytest.skip(f"No ElasticSearch reachable at {ELASTICSEARCH_URL}")
+        message = f"No ElasticSearch reachable at {ELASTICSEARCH_URL}"
+        if REQUIRE_ELASTICSEARCH:
+            pytest.fail(f"{message} (RAG_REQUIRE_ELASTICSEARCH=1)", pytrace=False)
+        pytest.skip(message)
 
     yield es
     es.close()

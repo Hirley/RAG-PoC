@@ -29,6 +29,9 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=rag_docs
+      # depends_on guarantees a healthy server here, so an unreachable one is a
+      # real failure rather than a reason to skip the integration tests.
+      - RAG_REQUIRE_ELASTICSEARCH=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       elasticsearch:
