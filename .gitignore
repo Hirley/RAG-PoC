@@ -1,9 +1,28 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
-.pytest_cache/
-.env
-.ruff_cache/
 *.egg-info/
 dist/
 build/
+
+# Environments and tooling caches
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets. The pattern covers .env.local, .env.production and friends, while
+# the negation keeps the committed template visible.
+.env
+.env.*
+!.env.example
+
+# Editors
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
