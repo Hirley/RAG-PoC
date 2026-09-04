@@ -37,6 +37,14 @@ REQUIRE_ELASTICSEARCH = os.environ.get("RAG_REQUIRE_ELASTICSEARCH") == "1"
 PING_TIMEOUT = 5
 REQUEST_TIMEOUT = 30
 
+# Retries on the probe are worth their delay only when a false negative is
+# fatal. Without REQUIRE_ELASTICSEARCH a probe that fails just skips, and the
+# node pool's backoff turns "no server here" into a 16s stall on every
+# Docker-less run. With it, the same false negative fails the whole suite
+# against a server that may only have been busy -- exactly the warm-up window
+# these timeouts exist for -- so there the retries stay.
+PING_RETRIES = 2 if REQUIRE_ELASTICSEARCH else 0
+
 DOCUMENTS = [
     {
         "title": "RAG Limitations",
@@ -60,16 +68,16 @@ DOCUMENTS = [
 def client() -> Iterator[Elasticsearch]:
     es = Elasticsearch(ELASTICSEARCH_URL, request_timeout=REQUEST_TIMEOUT)
     try:
-        # max_retries=0: without it the node pool retries a refused connection
-        # with backoff, so the "no server here" answer takes ~16s to arrive --
-        # a stall on every Docker-less run, for a question already answered.
         reachable = es.options(
-            request_timeout=PING_TIMEOUT, max_retries=0
+            request_timeout=PING_TIMEOUT, max_retries=PING_RETRIES
         ).ping()
     except Exception:
         reachable = False
 
     if not reachable:
+        # close() below is unreachable once these raise, so the client is
+        # released here rather than leaked on every skipped run.
+        es.close()
         message = f"No ElasticSearch reachable at {ELASTICSEARCH_URL}"
         if REQUIRE_ELASTICSEARCH:
             pytest.fail(f"{message} (RAG_REQUIRE_ELASTICSEARCH=1)", pytrace=False)
