@@ -94,8 +94,8 @@ def test_get_client_sends_the_workspace_header_when_configured(
 def test_get_client_omits_the_workspace_header_when_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A standard API key is rejected when the header is present but empty, so
-    it must be absent rather than blank."""
+    """A standard API key needs no workspace, so the header is omitted rather
+    than sent blank -- an empty value is not a value the API can act on."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID", raising=False)
 
@@ -213,3 +213,27 @@ def test_a_whitespace_only_model_falls_back_to_the_default(
     monkeypatch.setenv("ANTHROPIC_MODEL", "   ")
 
     assert call_and_capture(ok_client())["model"] == DEFAULT_MODEL
+
+def test_get_client_strips_whitespace_around_the_workspace_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """python-dotenv strips whitespace only from unquoted values, and a shell
+    export strips none, so a padded id reaches the header and the API rejects
+    it with a message that names the value rather than the whitespace."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "  wrkspc_123  ")
+
+    client = get_client()
+
+    assert client.default_headers["anthropic-workspace-id"] == "wrkspc_123"
+
+
+def test_get_client_treats_a_whitespace_only_workspace_id_as_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "   ")
+
+    client = get_client()
+
+    assert "anthropic-workspace-id" not in client.default_headers

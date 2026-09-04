@@ -31,9 +31,12 @@ class LLMTruncatedError(RuntimeError):
 
 def get_client() -> anthropic.Anthropic:
     # An identity-linked API key is rejected with a 400 unless the request
-    # names the workspace it acts in. A standard key needs no header, and
-    # sending an empty one would break it, so the key is omitted when unset.
-    workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    # names the workspace it acts in; a standard key needs no such header, so
+    # it is omitted rather than sent blank. The value is stripped because
+    # python-dotenv leaves whitespace inside quoted values and a shell export
+    # strips none -- a padded id comes back as "must be a valid workspace ID",
+    # a message that names the value rather than the whitespace.
+    workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID", "").strip()
     headers = {"anthropic-workspace-id": workspace_id} if workspace_id else {}
 
     return anthropic.Anthropic(default_headers=headers)
