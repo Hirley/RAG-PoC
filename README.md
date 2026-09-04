@@ -224,6 +224,32 @@ and its default command runs the test suite.
 
 Progress is tracked as GitHub Issues against a BDD backlog, organized on the
 [RAG PoC Roadmap](https://github.com/users/Hirley/projects/6) project board.
+Every story starts as a Gherkin spec, so the acceptance criteria on an issue
+and the `.feature` file that verifies it are the same text.
+
+| | User story | Spec | Status |
+| --- | --- | --- | --- |
+| [US01](https://github.com/Hirley/RAG-PoC/issues/1) | Automatically create the ElasticSearch index on startup | `index_initialization.feature` | Done |
+| [US02](https://github.com/Hirley/RAG-PoC/issues/2) | Bulk-ingest documents into the knowledge base | `ingestion.feature` | Done |
+| [US03](https://github.com/Hirley/RAG-PoC/issues/3) | Search for relevant documents by query | `search.feature` | Done |
+| [US04](https://github.com/Hirley/RAG-PoC/issues/4) | Format prompt with retrieved context and question | `prompt_formatting.feature` | Done |
+| [US05](https://github.com/Hirley/RAG-PoC/issues/5) | Generate LLM answer from formatted prompt | `answer_generation.feature` | Done |
+| [US06](https://github.com/Hirley/RAG-PoC/issues/8) | Orchestrate the full RAG flow in `rag(query)` | `rag_orchestration.feature` | Done |
+| [US07](https://github.com/Hirley/RAG-PoC/issues/22) | Drive the pipeline end to end from the command line | `cli.feature` | Done |
+| [US08](https://github.com/Hirley/RAG-PoC/issues/23) | Answer through Anthropic, OpenAI or Groq | `provider_selection.feature` | Done |
+
+### Not yet verified
+
+One link in the chain has never run against a live API: a successful response
+from any provider. Retrieval, prompt construction, orchestration and provider
+selection have all been exercised against a real ElasticSearch, but the
+generation step is covered by stubs shaped from the documented response
+formats. Supplying a working key and running `rag ask` closes it.
+
+### Next
+
+- Ingest a real corpus rather than the six-document sample
+- Replace ElasticSearch with PostgreSQL + `pgvector` (see **Roadmap** above)
 
 ## License
 
