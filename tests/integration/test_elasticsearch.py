@@ -28,6 +28,15 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 # unreachable server fails the run instead of quietly skipping it.
 REQUIRE_ELASTICSEARCH = os.environ.get("RAG_REQUIRE_ELASTICSEARCH") == "1"
 
+# Two timeouts, because the two kinds of call have opposite needs. The
+# reachability probe should give up quickly so a run without Docker skips
+# instead of stalling. The tests themselves create and delete indices, which
+# are cluster-state operations: on a single node capped at a 512MB heap they
+# routinely exceed five seconds, and a shared timeout made them fail
+# intermittently with ConnectionTimeout on a server that was merely busy.
+PING_TIMEOUT = 5
+REQUEST_TIMEOUT = 30
+
 DOCUMENTS = [
     {
         "title": "RAG Limitations",
@@ -49,9 +58,14 @@ DOCUMENTS = [
 
 @pytest.fixture(scope="module")
 def client() -> Iterator[Elasticsearch]:
-    es = Elasticsearch(ELASTICSEARCH_URL, request_timeout=5)
+    es = Elasticsearch(ELASTICSEARCH_URL, request_timeout=REQUEST_TIMEOUT)
     try:
-        reachable = es.ping()
+        # max_retries=0: without it the node pool retries a refused connection
+        # with backoff, so the "no server here" answer takes ~16s to arrive --
+        # a stall on every Docker-less run, for a question already answered.
+        reachable = es.options(
+            request_timeout=PING_TIMEOUT, max_retries=0
+        ).ping()
     except Exception:
         reachable = False
 
