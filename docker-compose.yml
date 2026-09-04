@@ -32,7 +32,13 @@ services:
       # depends_on guarantees a healthy server here, so an unreachable one is a
       # real failure rather than a reason to skip the integration tests.
       - RAG_REQUIRE_ELASTICSEARCH=1
+      # Every provider's key is forwarded; only the selected one is used,
+      # and each is empty unless set in the host environment.
+      - LLM_PROVIDER=${LLM_PROVIDER:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_WORKSPACE_ID=${ANTHROPIC_WORKSPACE_ID:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
     depends_on:
       elasticsearch:
         condition: service_healthy

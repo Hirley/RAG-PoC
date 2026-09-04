@@ -8,6 +8,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 
 import src.cli as cli_module
 from src.cli import main
+from src.llm import PROVIDERS
 
 scenarios("cli.feature")
 
@@ -103,7 +104,7 @@ def pipeline_answers(
 def elasticsearch_unreachable(
     context: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def failing_rag(query: str) -> str:
+    def failing_rag(query: str, provider: str | None = None) -> str:
         raise elasticsearch.ConnectionError("Connection refused")
 
     monkeypatch.setattr(cli_module, "rag", failing_rag)
@@ -118,8 +119,9 @@ def stub_pipeline(
     called with so the scenarios can assert the CLI wired them correctly."""
     calls: dict[str, Any] = {}
 
-    def fake_rag(query: str) -> str:
+    def fake_rag(query: str, provider: str | None = None) -> str:
         calls["rag_query"] = query
+        calls["rag_provider"] = provider
         return answer
 
     monkeypatch.setattr(cli_module, "rag", fake_rag)
@@ -185,3 +187,22 @@ def error_mentions(context: dict[str, Any], text: str) -> None:
 @then("the error output should mention the ElasticSearch URL")
 def error_mentions_elasticsearch_url(context: dict[str, Any]) -> None:
     assert "http://localhost:9200" in context["stderr"]
+
+
+@given("the API key is configured for every provider")
+def every_provider_key_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    for provider in PROVIDERS.values():
+        monkeypatch.setenv(provider.api_key_env, "test-key")
+
+
+@given(parsers.parse('the "{variable}" variable is missing'))
+def variable_is_missing(
+    context: dict[str, Any], monkeypatch: pytest.MonkeyPatch, variable: str
+) -> None:
+    monkeypatch.delenv(variable, raising=False)
+    stub_pipeline(context, monkeypatch)
+
+
+@then(parsers.parse('the pipeline should have been asked for the "{provider}" provider'))
+def pipeline_asked_for_provider(context: dict[str, Any], provider: str) -> None:
+    assert context["calls"]["rag_provider"] == provider

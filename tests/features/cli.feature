@@ -39,3 +39,18 @@ Feature: Command-line entrypoint
     When I run the CLI with "ask When do deploys happen?"
     Then the exit code should be 1
     And the error output should mention the ElasticSearch URL
+
+  Scenario: Choosing a provider for a single question
+    Given the API key is configured for every provider
+    And the RAG pipeline answers "Deploys happen at 10 PM."
+    When I run the CLI with "ask --provider groq When do deploys happen?"
+    Then the exit code should be 0
+    And the pipeline should have been asked for the "groq" provider
+
+  Scenario: Asking without the selected provider's API key
+    Given the API key is configured for every provider
+    And the "GROQ_API_KEY" variable is missing
+    When I run the CLI with "ask --provider groq When do deploys happen?"
+    Then the exit code should be 1
+    And the error output should mention "GROQ_API_KEY"
+    And the pipeline should not have been called
