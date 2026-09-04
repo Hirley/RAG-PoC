@@ -22,7 +22,7 @@ import anthropic
 import elasticsearch
 from dotenv import load_dotenv
 
-from src.llm import LLMRefusalError
+from src.llm import LLMConfigurationError, LLMRefusalError
 from src.rag import rag
 from src.search import (
     DEFAULT_SIZE,
@@ -191,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
             "Is it running? Try: docker-compose up -d elasticsearch",
             file=sys.stderr,
         )
+    except LLMConfigurationError as error:
+        print(f"{PROGRAM}: {error} Check your .env.", file=sys.stderr)
     except LLMRefusalError as error:
         print(f"{PROGRAM}: {error}", file=sys.stderr)
     except anthropic.APIError as error:

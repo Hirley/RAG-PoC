@@ -2,13 +2,26 @@ import os
 
 import anthropic
 
-DEFAULT_MODEL = "claude-opus-5"
-MAX_TOKENS = 16000
+# Sonnet is the default because a RAG answer is a short summary of context the
+# retrieval stage already found -- the reasoning is shallow and the output is
+# brief. Set ANTHROPIC_MODEL to reach for a stronger model when the corpus
+# demands it; the model is the real cost lever here.
+DEFAULT_MODEL = "claude-sonnet-5"
+
+# A ceiling, not a budget: only generated tokens are billed, so this bounds a
+# runaway generation rather than the price of a normal one. Corporate-knowledge
+# answers land far below it.
+DEFAULT_MAX_TOKENS = 1024
+
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 class LLMRefusalError(RuntimeError):
     """Raised when the model declines to answer the prompt."""
+
+
+class LLMConfigurationError(RuntimeError):
+    """Raised when an ANTHROPIC_* environment variable cannot be used."""
 
 
 def get_client() -> anthropic.Anthropic:
@@ -21,15 +34,44 @@ def get_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(default_headers=headers)
 
 
+def resolve_model(model: str | None = None) -> str:
+    """Resolved at call time, not import time: the CLI loads .env inside
+    main(), so an import-time lookup would never see it."""
+    return model or os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
+
+
+def resolve_max_tokens() -> int:
+    raw = os.environ.get("ANTHROPIC_MAX_TOKENS", "").strip()
+    if not raw:
+        return DEFAULT_MAX_TOKENS
+
+    try:
+        value = int(raw)
+    except ValueError:
+        # A bare ValueError would point at int(), not at the .env line that
+        # actually needs fixing.
+        raise LLMConfigurationError(
+            f"ANTHROPIC_MAX_TOKENS must be a positive integer, got {raw!r}."
+        ) from None
+
+    if value < 1:
+        # The API rejects this too, but only after a billable round trip.
+        raise LLMConfigurationError(
+            f"ANTHROPIC_MAX_TOKENS must be a positive integer, got {value}."
+        )
+
+    return value
+
+
 def llm(
     prompt: str,
     client: anthropic.Anthropic | None = None,
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
 ) -> str:
     client = client or get_client()
     response = client.beta.messages.create(
-        model=model,
-        max_tokens=MAX_TOKENS,
+        model=resolve_model(model),
+        max_tokens=resolve_max_tokens(),
         betas=[FALLBACK_BETA],
         fallbacks="default",
         messages=[{"role": "user", "content": prompt}],
