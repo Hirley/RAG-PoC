@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Deployment schedule",
+    "content": "The main production server is taken down for maintenance every night at 10 PM UTC. Deploys are frozen between 9:30 PM and 11 PM."
+  },
+  {
+    "title": "Onboarding",
+    "content": "New engineers receive access to the internal wiki, the staging cluster and the on-call rotation on their first day. Production access is granted after the first code review is merged."
+  },
+  {
+    "title": "On-call rotation",
+    "content": "The on-call rotation changes every Monday at 9 AM. Handover notes must be written in the incident channel before the shift ends."
+  },
+  {
+    "title": "Incident severity levels",
+    "content": "SEV1 means a full outage and pages the whole team. SEV2 means degraded service for some customers. SEV3 is an internal-only issue handled during business hours."
+  },
+  {
+    "title": "RAG limitations",
+    "content": "Retrieval-Augmented Generation is a poor fit when the answer requires aggregating across the whole corpus, or when the knowledge base is not the source of truth. It also cannot answer questions about documents that were never indexed."
+  },
+  {
+    "title": "Expense reimbursement",
+    "content": "Expenses under 500 BRL are approved automatically. Anything above that needs a manager's approval and a receipt attached within 30 days."
+  }
+]
