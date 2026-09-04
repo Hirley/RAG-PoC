@@ -22,6 +22,7 @@ dependencies = [
     "minsearch>=0.0.2",
     "elasticsearch>=8.15.0,<9.0.0",
     "anthropic>=0.34.0",
+    "openai>=1.40.0",
 ]
 
 [project.scripts]

@@ -36,7 +36,7 @@ def install_stages(
         calls["prompt"] = build_prompt(query, search_results)
         return calls["prompt"]
 
-    def fake_llm(prompt: str) -> str:
+    def fake_llm(prompt: str, provider: str | None = None) -> str:
         calls["llm_prompt"] = prompt
         return LLM_ANSWER
 

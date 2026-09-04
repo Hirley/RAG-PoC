@@ -2,8 +2,8 @@
 
 A Retrieval-Augmented Generation (RAG) system built in pure Python — no
 LangChain, no LlamaIndex. Dependencies are managed with [`uv`](https://github.com/astral-sh/uv),
-document retrieval currently runs on ElasticSearch, and generation goes
-through an LLM API (Anthropic).
+document retrieval currently runs on ElasticSearch, and generation goes through
+Anthropic, OpenAI or Groq — selectable at runtime.
 
 ## Architecture
 
@@ -19,8 +19,8 @@ query --> search(query) --> build_prompt(query, results) --> llm(prompt) --> ans
    the index for a given query.
 2. **Prompt** (`src/prompt.py`) — formats the retrieved context and the
    question into the LLM's prompt template.
-3. **LLM** (`src/llm.py`) — sends the prompt to the model and returns the
-   generated answer.
+3. **LLM** (`src/llm.py`) — sends the prompt to the selected provider and
+   returns the generated answer.
 
 **Roadmap:** the ElasticSearch backend is planned to be replaced by
 PostgreSQL + `pgvector` in production, to simplify disaster recovery
@@ -41,7 +41,7 @@ uv sync
 
 # Configure environment variables
 cp .env.example .env
-# then fill in ANTHROPIC_API_KEY
+# then fill in the key for the provider you intend to use
 
 # Start ElasticSearch locally
 docker-compose up -d elasticsearch
@@ -90,23 +90,59 @@ ELASTICSEARCH_INDEX=my_corpus uv run rag ask "What does it say?"
 ```
 
 Exit codes are `0` on success, `1` on a runtime failure (unreachable
-ElasticSearch, missing `ANTHROPIC_API_KEY`, malformed corpus file) and `2` on
-a usage error, so the commands compose in a shell script.
+ElasticSearch, a missing provider key, malformed corpus file) and `2` on a
+usage error, so the commands compose in a shell script.
+
+### Choosing a provider
+
+Three providers are available: `anthropic` (default), `openai` and `groq`.
+`LLM_PROVIDER` sets the deployment's default and `--provider` overrides it for
+one question, so the same question can be put to each of them without editing
+anything:
+
+```bash
+uv run rag ask --provider openai "When are deploys frozen?"
+uv run rag ask --provider groq   "When are deploys frozen?"
+```
+
+Groq is not a third integration. It speaks the OpenAI wire format, so it reuses
+that SDK against a different base URL rather than adding a dependency for the
+same request shape.
+
+Only the selected provider's key is required — `ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY` or `GROQ_API_KEY`, each the name that provider's own SDK
+already expects. A missing one is reported before retrieval runs, naming the
+variable the chosen provider actually needs.
+
+The SDKs disagree on how they report a refusal and a truncation — Anthropic
+uses `stop_reason`, OpenAI uses `finish_reason` plus a separate `refusal`
+field — and that difference stops inside `src/llm.py`. Every provider reaches
+the pipeline as one of the same three outcomes: an answer, `LLMRefusalError`,
+or `LLMTruncatedError`.
 
 ### Choosing the model
 
-`ANTHROPIC_MODEL` selects the model, defaulting to `claude-sonnet-5`. A RAG
-answer is a short summary of context retrieval already found — shallow
-reasoning, brief output — so Sonnet is ample, and the model is the real cost
-lever in this pipeline.
+Each provider carries its own default and its own override variable, so
+switching provider does not silently carry the previous provider's model name
+along:
+
+| Provider | Variable | Default |
+| --- | --- | --- |
+| `anthropic` | `ANTHROPIC_MODEL` | `claude-sonnet-5` |
+| `openai` | `OPENAI_MODEL` | `gpt-4o` |
+| `groq` | `GROQ_MODEL` | `llama-3.3-70b-versatile` |
 
 ```bash
 ANTHROPIC_MODEL=claude-opus-5 uv run rag ask "Something genuinely hard"
 ```
 
-`ANTHROPIC_MAX_TOKENS` (default `4096`) bounds the generated answer. This is a
-**ceiling, not a budget**: only tokens actually generated are billed, so raising
-it costs nothing by itself. It exists to stop a runaway generation.
+These defaults are a starting point, not a guarantee that your account has
+access to that particular model — set the variable if it does not.
+
+`LLM_MAX_TOKENS` (default `4096`) bounds the generated answer on every
+provider. It is a **ceiling, not a budget**: only tokens actually generated are
+billed, so raising it costs nothing by itself. It exists to stop a runaway
+generation.
 
 Thinking is enabled by default on current models and its tokens count against
 the same ceiling, so a value sized for the answer alone would truncate
@@ -173,7 +209,7 @@ and its default command runs the test suite.
 ├── src/
 │   ├── search.py          # ElasticSearch integration (future: PostgreSQL)
 │   ├── prompt.py          # Context/question prompt formatting
-│   ├── llm.py             # LLM API calls (Claude)
+│   ├── llm.py             # LLM API calls (Anthropic / OpenAI / Groq)
 │   ├── rag.py             # Orchestrates search -> prompt -> llm
 │   └── cli.py             # Terminal entrypoint (ingest / search / ask)
 ├── data/

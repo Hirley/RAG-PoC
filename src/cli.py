@@ -10,6 +10,9 @@ system by hand:
 `search` exists so retrieval can be debugged on its own: when an answer is
 wrong it is usually retrieval that is wrong, and checking that should not cost
 an API call.
+
+`ask --provider` picks which LLM answers, so the same question can be put to
+Anthropic, OpenAI and Groq without editing anything.
 """
 
 import argparse
@@ -20,9 +23,16 @@ from pathlib import Path
 
 import anthropic
 import elasticsearch
+import openai
 from dotenv import load_dotenv
 
-from src.llm import LLMConfigurationError, LLMRefusalError, LLMTruncatedError
+from src.llm import (
+    PROVIDERS,
+    LLMConfigurationError,
+    LLMRefusalError,
+    LLMTruncatedError,
+    resolve_provider,
+)
 from src.rag import rag
 from src.search import (
     DEFAULT_SIZE,
@@ -119,6 +129,13 @@ def build_parser() -> argparse.ArgumentParser:
         "ask", help="Run the full pipeline and print the generated answer."
     )
     ask.add_argument("query", nargs="+", help="The question to answer.")
+    # No argparse `choices`: an unknown name is reported by resolve_provider,
+    # so a typo reads the same whether it came from the flag or LLM_PROVIDER.
+    ask.add_argument(
+        "--provider",
+        default=None,
+        help=f"Which LLM to answer with ({', '.join(sorted(PROVIDERS))}).",
+    )
 
     return parser
 
@@ -146,18 +163,23 @@ def run_search(args: argparse.Namespace) -> int:
 
 
 def run_ask(args: argparse.Namespace) -> int:
+    # Resolved before anything else so an unknown provider is reported as such
+    # rather than as a missing key for a provider that does not exist.
+    provider = resolve_provider(args.provider)
+
     # Checked up front so a missing key fails immediately with an actionable
     # message, rather than as an SDK traceback after the retrieval round trip.
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not os.environ.get(provider.api_key_env, "").strip():
         print(
-            "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it "
-            "in, or export the variable in your shell.",
+            f"{provider.api_key_env} is not set, and the {provider.name} "
+            "provider needs it. Copy .env.example to .env and fill it in, or "
+            "export the variable in your shell.",
             file=sys.stderr,
         )
         return EXIT_ERROR
 
     query = " ".join(args.query)
-    print(rag(query))
+    print(rag(query, provider=args.provider))
     return EXIT_OK
 
 
@@ -197,8 +219,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{PROGRAM}: {error}", file=sys.stderr)
     except LLMRefusalError as error:
         print(f"{PROGRAM}: {error}", file=sys.stderr)
-    except anthropic.APIError as error:
-        print(f"{PROGRAM}: the Anthropic API call failed: {error}", file=sys.stderr)
+    except (anthropic.APIError, openai.APIError) as error:
+        # Both SDKs are caught here: the provider is chosen at runtime, so
+        # which one raises is not knowable when the handler is written.
+        print(f"{PROGRAM}: the LLM API call failed: {error}", file=sys.stderr)
 
     return EXIT_ERROR
 
