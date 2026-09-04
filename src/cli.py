@@ -22,7 +22,7 @@ import anthropic
 import elasticsearch
 from dotenv import load_dotenv
 
-from src.llm import LLMConfigurationError, LLMRefusalError
+from src.llm import LLMConfigurationError, LLMRefusalError, LLMTruncatedError
 from src.rag import rag
 from src.search import (
     DEFAULT_SIZE,
@@ -193,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     except LLMConfigurationError as error:
         print(f"{PROGRAM}: {error} Check your .env.", file=sys.stderr)
+    except LLMTruncatedError as error:
+        print(f"{PROGRAM}: {error}", file=sys.stderr)
     except LLMRefusalError as error:
         print(f"{PROGRAM}: {error}", file=sys.stderr)
     except anthropic.APIError as error:

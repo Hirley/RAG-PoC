@@ -9,9 +9,10 @@ import anthropic
 DEFAULT_MODEL = "claude-sonnet-5"
 
 # A ceiling, not a budget: only generated tokens are billed, so this bounds a
-# runaway generation rather than the price of a normal one. Corporate-knowledge
-# answers land far below it.
-DEFAULT_MAX_TOKENS = 1024
+# runaway generation rather than the price of a normal one. It is not tight,
+# because thinking is on by default and its tokens count against this same
+# ceiling -- a value sized for the answer alone would truncate routinely.
+DEFAULT_MAX_TOKENS = 4096
 
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
@@ -22,6 +23,10 @@ class LLMRefusalError(RuntimeError):
 
 class LLMConfigurationError(RuntimeError):
     """Raised when an ANTHROPIC_* environment variable cannot be used."""
+
+
+class LLMTruncatedError(RuntimeError):
+    """Raised when the answer was cut off by the token ceiling."""
 
 
 def get_client() -> anthropic.Anthropic:
@@ -37,7 +42,10 @@ def get_client() -> anthropic.Anthropic:
 def resolve_model(model: str | None = None) -> str:
     """Resolved at call time, not import time: the CLI loads .env inside
     main(), so an import-time lookup would never see it."""
-    return model or os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
+    # Stripped for the same reason as the workspace id: python-dotenv keeps
+    # whitespace inside quoted values, and a whitespace-only name is truthy --
+    # it would override the default with a blank model rather than fall back.
+    return model or os.environ.get("ANTHROPIC_MODEL", "").strip() or DEFAULT_MODEL
 
 
 def resolve_max_tokens() -> int:
@@ -82,6 +90,16 @@ def llm(
         raise LLMRefusalError(
             f"The model declined to answer (category: "
             f"{getattr(details, 'category', 'unknown')})."
+        )
+
+    if response.stop_reason == "max_tokens":
+        # Returning the fragment would hand the caller a half-finished answer
+        # indistinguishable from a complete one -- worse than an error in a
+        # system whose whole promise is answering from a known corpus.
+        raise LLMTruncatedError(
+            "The answer hit the token ceiling and was cut off. Raise "
+            f"ANTHROPIC_MAX_TOKENS above the current {resolve_max_tokens()} "
+            "and ask again."
         )
 
     # Thinking is enabled by default on current models, so the answer is not

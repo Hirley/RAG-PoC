@@ -8,6 +8,7 @@ from src.llm import (
     DEFAULT_MODEL,
     LLMConfigurationError,
     LLMRefusalError,
+    LLMTruncatedError,
     get_client,
     llm,
 )
@@ -177,3 +178,38 @@ def test_a_non_positive_max_tokens_is_rejected(
 
     with pytest.raises(LLMConfigurationError, match="ANTHROPIC_MAX_TOKENS"):
         llm("Any prompt", client=ok_client())
+
+
+def test_a_truncated_answer_is_not_returned_as_if_complete() -> None:
+    """stop_reason "max_tokens" means the model was cut off mid-answer. In a
+    RAG system a confidently half-finished answer is worse than an error, and
+    the caller cannot tell one from the other by looking at the text."""
+    client = build_client(
+        SimpleNamespace(
+            stop_reason="max_tokens",
+            content=[SimpleNamespace(type="text", text="Deploys are frozen bet")],
+        )
+    )
+
+    with pytest.raises(LLMTruncatedError, match="ANTHROPIC_MAX_TOKENS"):
+        llm("Any prompt", client=client)
+
+
+def test_model_is_stripped_of_surrounding_whitespace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """python-dotenv keeps whitespace inside quoted values, so a padded model
+    name would be sent to the API and rejected as unknown."""
+    monkeypatch.setenv("ANTHROPIC_MODEL", "  claude-opus-5  ")
+
+    assert call_and_capture(ok_client())["model"] == "claude-opus-5"
+
+
+def test_a_whitespace_only_model_falls_back_to_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Truthy but useless: without stripping this would override the default
+    with a blank model name rather than fall back to it."""
+    monkeypatch.setenv("ANTHROPIC_MODEL", "   ")
+
+    assert call_and_capture(ok_client())["model"] == DEFAULT_MODEL

@@ -104,10 +104,15 @@ lever in this pipeline.
 ANTHROPIC_MODEL=claude-opus-5 uv run rag ask "Something genuinely hard"
 ```
 
-`ANTHROPIC_MAX_TOKENS` (default `1024`) bounds the generated answer. Note that
-this is a **ceiling, not a budget**: only tokens actually generated are billed,
-so raising it does not cost anything by itself — it exists to stop a runaway
-generation, and to keep an answer from being truncated when set too low.
+`ANTHROPIC_MAX_TOKENS` (default `4096`) bounds the generated answer. This is a
+**ceiling, not a budget**: only tokens actually generated are billed, so raising
+it costs nothing by itself. It exists to stop a runaway generation.
+
+Thinking is enabled by default on current models and its tokens count against
+the same ceiling, so a value sized for the answer alone would truncate
+routinely. An answer that does hit the ceiling raises rather than returning
+what it got — a half-finished answer is indistinguishable from a complete one
+by looking at the text, which in a RAG system is worse than an error.
 
 ## Running the tests
 
