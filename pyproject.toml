@@ -24,6 +24,9 @@ dependencies = [
     "anthropic>=0.34.0",
 ]
 
+[project.scripts]
+rag = "src.cli:main"
+
 [project.urls]
 Repository = "https://github.com/Hirley/RAG-PoC"
 

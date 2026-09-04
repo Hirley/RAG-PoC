@@ -52,6 +52,40 @@ docker-compose up -d elasticsearch
 > (`system-certs = true`) — it's already configured to use the OS
 > certificate store instead of `uv`'s bundled one.
 
+## Using the CLI
+
+`src/cli.py` is the entrypoint that drives the pipeline from the terminal. It
+is registered as the `rag` console script by `uv sync`, and also runs as
+`python -m src.cli`.
+
+```bash
+# 1. Load a corpus (a JSON file: a list of {"title", "content"} objects)
+uv run rag ingest data/sample_documents.json
+
+# 2. Inspect retrieval on its own — no LLM call, so no API cost
+uv run rag search "When are deploys frozen?"
+
+# 3. Run the full pipeline and get a generated answer
+uv run rag ask "When are deploys frozen?"
+```
+
+`search` is deliberately separate from `ask`: when an answer comes back wrong,
+retrieval is usually what is wrong, and diagnosing that should not cost an API
+call. `--size` controls how many documents come back, and `--index` overrides
+the target index for a single run.
+
+The index is read from `ELASTICSEARCH_INDEX` (default `rag_docs`), so `ingest`
+and `ask` always agree on where the corpus lives:
+
+```bash
+ELASTICSEARCH_INDEX=my_corpus uv run rag ingest my_documents.json
+ELASTICSEARCH_INDEX=my_corpus uv run rag ask "What does it say?"
+```
+
+Exit codes are `0` on success, `1` on a runtime failure (unreachable
+ElasticSearch, missing `ANTHROPIC_API_KEY`, malformed corpus file) and `2` on
+a usage error, so the commands compose in a shell script.
+
 ## Running the tests
 
 This project follows BDD/TDD: every feature starts as a Gherkin spec in
@@ -112,7 +146,10 @@ and its default command runs the test suite.
 │   ├── search.py          # ElasticSearch integration (future: PostgreSQL)
 │   ├── prompt.py          # Context/question prompt formatting
 │   ├── llm.py             # LLM API calls (Claude)
-│   └── rag.py             # Orchestrates search -> prompt -> llm
+│   ├── rag.py             # Orchestrates search -> prompt -> llm
+│   └── cli.py             # Terminal entrypoint (ingest / search / ask)
+├── data/
+│   └── sample_documents.json  # Small corpus for trying the CLI out
 ├── Dockerfile              # Application image
 ├── docker-compose.yml      # ElasticSearch + app
 ├── .env.example            # Environment variable template
