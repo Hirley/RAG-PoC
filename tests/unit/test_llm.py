@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.llm import DEFAULT_MODEL, LLMRefusalError, llm
+from src.llm import DEFAULT_MODEL, LLMRefusalError, get_client, llm
 
 
 def build_client(response: SimpleNamespace) -> MagicMock:
@@ -68,3 +68,29 @@ def test_llm_sends_the_prompt_as_a_single_user_message() -> None:
     kwargs = client.beta.messages.create.call_args.kwargs
     assert kwargs["model"] == DEFAULT_MODEL
     assert kwargs["messages"] == [{"role": "user", "content": "What is RAG?"}]
+
+
+def test_get_client_sends_the_workspace_header_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Identity-linked API keys are rejected with a 400 unless the request
+    names the workspace it acts in."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "wrkspc_123")
+
+    client = get_client()
+
+    assert client.default_headers["anthropic-workspace-id"] == "wrkspc_123"
+
+
+def test_get_client_omits_the_workspace_header_when_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A standard API key is rejected when the header is present but empty, so
+    it must be absent rather than blank."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID", raising=False)
+
+    client = get_client()
+
+    assert "anthropic-workspace-id" not in client.default_headers
