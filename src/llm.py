@@ -1,3 +1,5 @@
+import os
+
 import anthropic
 
 DEFAULT_MODEL = "claude-opus-5"
@@ -10,7 +12,13 @@ class LLMRefusalError(RuntimeError):
 
 
 def get_client() -> anthropic.Anthropic:
-    return anthropic.Anthropic()
+    # An identity-linked API key is rejected with a 400 unless the request
+    # names the workspace it acts in. A standard key needs no header, and
+    # sending an empty one would break it, so the key is omitted when unset.
+    workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    headers = {"anthropic-workspace-id": workspace_id} if workspace_id else {}
+
+    return anthropic.Anthropic(default_headers=headers)
 
 
 def llm(

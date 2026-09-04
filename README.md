@@ -47,6 +47,13 @@ cp .env.example .env
 docker-compose up -d elasticsearch
 ```
 
+> **Identity-linked API keys** must also set `ANTHROPIC_WORKSPACE_ID`. The API
+> rejects them with a `400 invalid_request_error` — *"anthropic-workspace-id is
+> required"* — unless the request names the workspace it acts in. The id is in
+> the Anthropic Console under **Settings → Workspaces**, and appears in the URL
+> as `wrkspc_...`. A standard Console API key needs no such header, so leave the
+> variable blank for one.
+
 > If `uv` or Docker fail TLS/certificate validation behind a corporate
 > proxy or antivirus that intercepts HTTPS, see `uv.toml`
 > (`system-certs = true`) — it's already configured to use the OS
