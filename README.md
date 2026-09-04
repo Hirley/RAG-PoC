@@ -93,6 +93,27 @@ Exit codes are `0` on success, `1` on a runtime failure (unreachable
 ElasticSearch, missing `ANTHROPIC_API_KEY`, malformed corpus file) and `2` on
 a usage error, so the commands compose in a shell script.
 
+### Choosing the model
+
+`ANTHROPIC_MODEL` selects the model, defaulting to `claude-sonnet-5`. A RAG
+answer is a short summary of context retrieval already found — shallow
+reasoning, brief output — so Sonnet is ample, and the model is the real cost
+lever in this pipeline.
+
+```bash
+ANTHROPIC_MODEL=claude-opus-5 uv run rag ask "Something genuinely hard"
+```
+
+`ANTHROPIC_MAX_TOKENS` (default `4096`) bounds the generated answer. This is a
+**ceiling, not a budget**: only tokens actually generated are billed, so raising
+it costs nothing by itself. It exists to stop a runaway generation.
+
+Thinking is enabled by default on current models and its tokens count against
+the same ceiling, so a value sized for the answer alone would truncate
+routinely. An answer that does hit the ceiling raises rather than returning
+what it got — a half-finished answer is indistinguishable from a complete one
+by looking at the text, which in a RAG system is worse than an error.
+
 ## Running the tests
 
 This project follows BDD/TDD: every feature starts as a Gherkin spec in
